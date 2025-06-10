@@ -1,69 +1,83 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../page/detail_page.dart';
+import '../providers/clothing_provider.dart';
 
-class SearchBarWidget extends StatelessWidget {
-  final Function(String) onChanged;
+class SearchBarWidget extends StatefulWidget {
+  final ValueChanged<String> onChanged;
 
   const SearchBarWidget({super.key, required this.onChanged});
 
   @override
-  Widget build(BuildContext context) {
-    return TextField(
-      decoration: const InputDecoration(
-        prefixIcon: Icon(Icons.search),
-        hintText: 'Search clothes by title',
-        border: OutlineInputBorder(),
-      ),
-      onChanged: onChanged,
-    );
-  }
+  State<SearchBarWidget> createState() => _SearchBarWidgetState();
 }
 
-class SearchResultList extends StatelessWidget {
-  final List<Map<String, dynamic>> filteredClothes;
-
-  const SearchResultList({super.key, required this.filteredClothes});
+class _SearchBarWidgetState extends State<SearchBarWidget> {
+  String _searchQuery = '';
 
   @override
   Widget build(BuildContext context) {
-    if (filteredClothes.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 12),
-        child: Text('No clothes found.'),
-      );
-    }
+    final provider = Provider.of<ClothingProvider>(context);
+    final searchResults = provider.searchClothes(_searchQuery);
 
     return Column(
-      children: filteredClothes.map((item) {
-        return Card(
-          margin: const EdgeInsets.symmetric(vertical: 8),
-          child: ListTile(
-            leading: Image.network(
-              item['image'],
-              width: 50,
-              height: 50,
-              fit: BoxFit.cover,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          decoration: const InputDecoration(
+            hintText: 'Search clothes...',
+            prefixIcon: Icon(Icons.search),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(12)),
             ),
-            title: Text(item['title']),
-            subtitle: Text('Made in: ${item['madeIn']} - \$${item['price']}'),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => DetailPage(
-                    title: item['title'],
-                    imageUrl: item['image'],
-                    price: item['price'],
-                    label: item['label'],
-                    madeIn: item['madeIn'],
-                    description: item['description'],
+          ),
+          onChanged: (value) {
+            setState(() {
+              _searchQuery = value;
+            });
+            widget.onChanged(value);
+          },
+        ),
+        const SizedBox(height: 10),
+        if (_searchQuery.isNotEmpty)
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: searchResults.length,
+            itemBuilder: (context, index) {
+              final item = searchResults[index];
+              return ListTile(
+                leading: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    item.image,
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.cover,
                   ),
                 ),
+                title: Text(item.title),
+                subtitle: Text(
+                  item.body.length > 50
+                      ? '${item.body.substring(0, 50)}...'
+                      : item.body,
+                ),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => DetailPage(
+                        title: item.title,
+                        body: item.body,
+                        imageUrl: item.image,
+                      ),
+                    ),
+                  );
+                },
               );
             },
           ),
-        );
-      }).toList(),
+      ],
     );
   }
 }
